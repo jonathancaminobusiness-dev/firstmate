@@ -17,7 +17,10 @@
 # while the away-posture record (state/.afk-contract) exists an
 # item held for the captain is never rechecked at all, in either posture.
 # While state/.afk exists, the daemon owns triage and this watcher queues and exits
-# on every wake. Printed reason lines:
+# on every wake. Printed reason lines include the typed startup failure when the
+# watcher's own process identity cannot be established before the poll loop:
+#   watcher: FAILED - process identity could not be established
+#                          the watcher's startup identity probe failed
 #   signal: <file>...      status/turn-end signals, surfaced when a listed status
 #                          span has a captain-relevant event OR a no-verb signal lacks
 #                          positive execution evidence, unless afk is active

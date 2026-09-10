@@ -129,14 +129,12 @@ SH
     FM_HEARTBEAT=999999 FM_ARM_CONFIRM_TIMEOUT=3 "$WATCH_ARM" > "$armout" 2>&1 &
   armpid=$!
   i=0
-  while [ "$i" -lt 80 ]; do
-    if grep -qF 'watcher: started pid=' "$armout" 2>/dev/null \
-      || grep -qF 'check: rearm-resurface' "$armout" 2>/dev/null; then
-      break
-    fi
+  while [ "$i" -lt 80 ] && ! grep -qF 'check: rearm-resurface' "$armout" 2>/dev/null; do
     sleep 0.1
     i=$((i + 1))
   done
+  grep -qF 'watcher: started pid=' "$armout" \
+    || fail "later sanctioned arm did not confirm a healthy watcher: $(cat "$armout")"
   grep -qF 'check: rearm-resurface' "$armout" \
     || fail "later sanctioned arm did not recover watcher identity: $(cat "$armout")"
   ! grep -qF 'process identity could not be established' "$armout" \

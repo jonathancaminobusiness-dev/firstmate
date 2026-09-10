@@ -143,6 +143,48 @@ SH
   pass "arm fails closed on watcher identity failure and a later sanctioned arm recovers"
 }
 
+test_watcher_fails_closed_when_identity_metadata_write_fails() {
+  local dir state badbin envfile out watcher status i
+  dir=$(make_case identity-metadata-write-failure)
+  state="$dir/state"
+  badbin="$dir/badbin"
+  envfile="$badbin/bash-env"
+  out="$dir/watch.out"
+  mkdir "$badbin"
+  cat > "$envfile" <<'SH'
+printf() {
+  if [ -n "${FM_WATCH_DELIVERY_IDENTITY:-}" ] \
+    && [ "${FM_FAIL_IDENTITY_WRITE_ONCE:-0}" = 1 ]; then
+    FM_FAIL_IDENTITY_WRITE_ONCE=0
+    return 1
+  fi
+  builtin printf "$@"
+}
+SH
+
+  FM_STATE_OVERRIDE="$state" BASH_ENV="$envfile" FM_FAIL_IDENTITY_WRITE_ONCE=1 \
+    FM_POLL=0.2 FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 "$WATCH" > "$out" 2>&1 &
+  watcher=$!
+  i=0
+  while [ "$i" -lt 80 ] && is_live_non_zombie "$watcher"; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+  if is_live_non_zombie "$watcher"; then
+    kill -KILL "$watcher" 2>/dev/null || true
+    wait "$watcher" 2>/dev/null || true
+    fail "watcher remained alive after identity metadata write failure"
+  fi
+  status=0
+  wait "$watcher" 2>/dev/null || status=$?
+  [ "$status" -ne 0 ] || fail "watcher exited zero after identity metadata write failure"
+  grep -qF 'watcher: FAILED - process identity could not be established' "$out" \
+    || fail "watcher did not surface identity metadata write failure: $(cat "$out")"
+  [ ! -e "$state/.watch.lock" ] || fail "identity metadata failure left the singleton lock behind"
+  [ -s "$state/.watcher-down" ] || fail "identity metadata failure did not publish recovery evidence"
+  pass "watcher fails closed when identity metadata cannot be persisted"
+}
+
 test_live_stale_watch_lock_is_actionable() {
   local dir state fakebin out err status
   dir=$(make_case live-stale-lock)
@@ -1152,6 +1194,7 @@ test_proc_pid_identity_ignores_wall_clock_and_detects_pid_reuse
 test_msys_pid_identity_uses_proc
 test_stale_watch_lock_reclaimed
 test_arm_fails_closed_on_watcher_identity_failure_and_rearms
+test_watcher_fails_closed_when_identity_metadata_write_fails
 test_stale_watch_reclaim_publishes_before_clear
 test_live_stale_watch_lock_is_actionable
 test_guard_warnings

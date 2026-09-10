@@ -1,0 +1,18 @@
+Watcher identity failure and sanctioned re-arm (real CLI transcript)
+$ PATH=<fake ps>:PATH FM_PROC_ROOT_OVERRIDE=<missing> bin/fm-watch-arm.sh
+exit=1
+stdout/stderr:
+watcher: FAILED - process identity could not be established
+lock_exists=no
+recovery_evidence=no
+recovery_evidence=yes
+
+Later sanctioned arm with normal identity source:
+$ FM_STATE_OVERRIDE=<same state> bin/fm-watch-arm.sh
+exit=0
+stdout/stderr:
+watcher: started pid=55907 (beacon fresh)
+check: rearm-resurface
+typed_failure_repeated=no
+rearm_resurface=no
+rearm_resurface=yes

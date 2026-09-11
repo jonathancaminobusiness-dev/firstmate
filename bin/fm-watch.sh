@@ -17,7 +17,10 @@
 # while the away-posture record (state/.afk-contract) exists an
 # item held for the captain is never rechecked at all, in either posture.
 # While state/.afk exists, the daemon owns triage and this watcher queues and exits
-# on every wake. Printed reason lines:
+# on every wake. Printed reason lines include the typed startup failure when the
+# watcher's own process identity cannot be established before the poll loop:
+#   watcher: FAILED - process identity could not be established
+#                          the watcher's startup identity probe failed
 #   signal: <file>...      status/turn-end signals, surfaced when a listed status
 #                          span has a captain-relevant event OR a no-verb signal lacks
 #                          positive execution evidence, unless afk is active
@@ -1814,8 +1817,16 @@ printf '%s\n' "$FM_HOME" > "$WATCH_LOCK/fm-home" || true
 printf '%s\n' "$WATCH_PATH" > "$WATCH_LOCK/watcher-path" || true
 # shellcheck disable=SC2034 # Consumed by wake() in the separately linted transition owner.
 FM_WATCH_DELIVERY_PID=$WATCHER_PID
-FM_WATCH_DELIVERY_IDENTITY=$(fm_pid_identity "$WATCHER_PID" 2>/dev/null || true)
-printf '%s\n' "$FM_WATCH_DELIVERY_IDENTITY" > "$WATCH_LOCK/pid-identity" 2>/dev/null || true
+if ! FM_WATCH_DELIVERY_IDENTITY=$(fm_pid_identity "$WATCHER_PID" 2>/dev/null) \
+  || [ -z "$FM_WATCH_DELIVERY_IDENTITY" ]; then
+  echo "watcher: FAILED - process identity could not be established"
+  exit 1
+fi
+if ! printf '%s\n' "$FM_WATCH_DELIVERY_IDENTITY" > "$WATCH_LOCK/pid-identity" 2>/dev/null \
+  || [ "$(cat "$WATCH_LOCK/pid-identity" 2>/dev/null || true)" != "$FM_WATCH_DELIVERY_IDENTITY" ]; then
+  echo "watcher: FAILED - process identity could not be established"
+  exit 1
+fi
 
 [ -e "$STATE/.last-heartbeat" ] || touch "$STATE/.last-heartbeat"
 

@@ -8,8 +8,9 @@ set -u
 TEARDOWN="$ROOT/bin/fm-teardown.sh"
 TMP_ROOT=$(fm_test_tmproot fm-teardown-endpoint-safety)
 REAL_TMUX=$(command -v tmux || true)
-# The shape Orca really produces: <uuid>::<absolute worktree path>.
-ORCA_REAL_ID="e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/captain/orca/workspaces/proj/fm-task"
+# The shape Orca really produces: <uuid>::<absolute worktree path>, where the
+# embedded path is the worktree recorded for the task.
+ORCA_UUID=e5d1f72a-8900-4f46-aed7-b9f49673674b
 
 make_case() {  # <name>
   local dir=$1
@@ -275,7 +276,7 @@ test_supported_backend_endpoint_records_validate() {
   id=orca-task
   fm_write_meta "$dir/home/state/$id.meta" \
     "window=fm-$id" "endpoint_task_id=$id" "terminal=term-7" \
-    "worktree=$dir/worktree" "project=$dir/project" "backend=orca" "orca_worktree_id=$ORCA_REAL_ID"
+    "worktree=$dir/worktree" "project=$dir/project" "backend=orca" "orca_worktree_id=$ORCA_UUID::$dir/worktree"
   fm_backend_validate_task_endpoint "$dir/home/state/$id.meta" "$id" || fail "valid Orca endpoint refused"
   [ "$FM_BACKEND_VALIDATED_TARGET" = term-7 ] || fail "Orca validation did not select its terminal"
 
@@ -296,7 +297,7 @@ test_supported_backend_endpoint_records_validate() {
 }
 
 test_orca_worktree_id_has_its_own_composite_rule() {
-  local dir id bad
+  local dir id bad real_path
   dir=$(make_case orca-id-form)
   # shellcheck source=/dev/null
   . "$ROOT/bin/fm-backend.sh"
@@ -304,54 +305,50 @@ test_orca_worktree_id_has_its_own_composite_rule() {
   id=orca-real-id
   fm_write_meta "$dir/home/state/$id.meta" \
     "window=fm-$id" "endpoint_task_id=$id" "terminal=term-7" \
-    "worktree=$dir/worktree" "project=$dir/project" "backend=orca" "orca_worktree_id=$ORCA_REAL_ID"
+    "worktree=$dir/worktree" "project=$dir/project" "backend=orca" "orca_worktree_id=$ORCA_UUID::$dir/worktree"
   fm_backend_validate_task_endpoint "$dir/home/state/$id.meta" "$id" \
     || fail "the real <id>::<absolute path> Orca worktree id was refused"
   [ "$FM_BACKEND_VALIDATED_TARGET" = term-7 ] || fail "real-form Orca id did not select its terminal"
 
+  # Real worktree paths carry spaces and parentheses; they pass as long as the
+  # embedded path is exactly the recorded worktree.
+  for real_path in "$dir/worktree" "/Users/Jon Camino/wt" "/Users/x/(admin)/wt"; do
+    fm_write_meta "$dir/home/state/$id.meta" \
+      "window=fm-$id" "endpoint_task_id=$id" "terminal=term-7" \
+      "worktree=$real_path" "project=$dir/project" "backend=orca" \
+      "orca_worktree_id=$ORCA_UUID::$real_path"
+    fm_backend_validate_task_endpoint "$dir/home/state/$id.meta" "$id" \
+      || fail "a real Orca worktree id embedding the recorded worktree was refused: $real_path"
+    [ "$FM_BACKEND_VALIDATED_TARGET" = term-7 ] || fail "real-form Orca id did not select its terminal"
+  done
+
   for bad in \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b:/Users/x/orca/wt" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::relative/path" \
-    "::/Users/x/orca/wt" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/orca/../wt" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x//wt" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/or ca/wt" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/wt"$'\t'"y" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/wt"$'\n'"y" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/wt;rm" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/wt|cat" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/wt&y" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/\$HOME" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/\`id\`" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/\"wt\"" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/'wt'" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/wt>y" \
-    "e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/x/wt*" \
-    "bad id::/Users/x/wt" \
-    "bad;id::/Users/x/wt"; do
-    if fm_backend_orca_worktree_id_valid "$bad"; then
-      fail "malformed Orca worktree id was accepted: $bad"
+    "$ORCA_UUID" \
+    "$ORCA_UUID:$dir/worktree" \
+    "$ORCA_UUID::" \
+    "$ORCA_UUID::worktree" \
+    "$ORCA_UUID::/Users/x/orca/workspaces/proj/fm-task" \
+    "::$dir/worktree" \
+    "bad id::$dir/worktree" \
+    "bad;id::$dir/worktree"; do
+    if fm_backend_orca_worktree_id_valid "$bad" "$dir/worktree"; then
+      fail "malformed or foreign Orca worktree id was accepted: $bad"
     fi
-    # A newline cannot survive a one-line metadata record, so it is covered by the helper alone.
-    case "$bad" in *$'\n'*) continue ;; esac
     fm_write_meta "$dir/home/state/$id.meta" \
       "window=fm-$id" "endpoint_task_id=$id" "terminal=term-7" \
       "worktree=$dir/worktree" "project=$dir/project" "backend=orca" "orca_worktree_id=$bad"
     if fm_backend_validate_task_endpoint "$dir/home/state/$id.meta" "$id" 2>/dev/null; then
-      fail "endpoint validation accepted a malformed Orca worktree id: $bad"
+      fail "endpoint validation accepted a malformed or foreign Orca worktree id: $bad"
     fi
   done
-  if fm_backend_orca_worktree_id_valid ""; then fail "empty Orca worktree id was accepted"; fi
+  if fm_backend_orca_worktree_id_valid "" "$dir/worktree"; then fail "empty Orca worktree id was accepted"; fi
 
   # The composite rule is scoped to orca_worktree_id: the shared atom rule still
   # refuses a path, so every other endpoint atom keeps its strict alphabet.
-  if fm_backend_endpoint_atom_valid "$ORCA_REAL_ID"; then
+  if fm_backend_endpoint_atom_valid "$ORCA_UUID::$dir/worktree"; then
     fail "the shared atom rule must stay strict and never accept a path-shaped value"
   fi
-  pass "cleanup identity: Orca worktree ids validate as <id>::<absolute path> and refuse every malformed form"
+  pass "cleanup identity: Orca worktree ids validate as <id>::<recorded worktree> and refuse every other form"
 }
 
 test_tmux_empty_target_refuses_without_invocation() {

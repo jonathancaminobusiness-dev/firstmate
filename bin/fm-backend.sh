@@ -390,20 +390,18 @@ fm_backend_endpoint_atom_valid() {  # <value>
 
 # An Orca worktree id is composite by construction: <id>::<absolute path>.
 # It gets its own rule so the shared atom alphabet above stays strict for every
-# other endpoint atom. Refuses an empty value, a missing "::", a non-atom id, a
-# relative or root-only path, dot-dot or empty path segments, and any character
-# outside the atom alphabet plus "/" (whitespace, quotes, "$", backtick, ";", "|").
-fm_backend_orca_worktree_id_valid() {  # <value>
-  local value=$1 repo path
+# other endpoint atom. The id part must be an atom and the embedded path must be
+# exactly the worktree recorded in the task metadata, so cleanup can only ever
+# target the worktree this task owns.
+fm_backend_orca_worktree_id_valid() {  # <value> <worktree>
+  local value=$1 worktree=$2 repo path
+  [ -n "$value" ] || return 1
   case "$value" in *::*) ;; *) return 1 ;; esac
   repo=${value%%::*}
   path=${value#*::}
   fm_backend_endpoint_atom_valid "$repo" || return 1
-  case "$path" in
-    /|/*[!A-Za-z0-9._@%+/-]*|/*//*|/*/../*|/*/..) return 1 ;;
-    /*) return 0 ;;
-    *) return 1 ;;
-  esac
+  case "$path" in /*) ;; *) return 1 ;; esac
+  [ "$path" = "$worktree" ] || return 1
 }
 
 fm_backend_validate_task_endpoint() {  # <meta-file> <task-id>
@@ -526,7 +524,7 @@ fm_backend_validate_task_endpoint() {  # <meta-file> <task-id>
       }
       if [ "$window" != "fm-$id" ] \
         || ! fm_backend_endpoint_atom_valid "$terminal" \
-        || ! fm_backend_orca_worktree_id_valid "$worktree_id"; then
+        || ! fm_backend_orca_worktree_id_valid "$worktree_id" "$worktree"; then
         echo "REFUSED: Orca endpoint metadata for task $id is malformed or inconsistent; preserving task state." >&2
         return 1
       fi

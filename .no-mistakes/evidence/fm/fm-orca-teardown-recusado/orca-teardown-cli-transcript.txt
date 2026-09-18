@@ -1,0 +1,90 @@
+Firstmate: end-to-end Orca teardown through bin/fm-teardown.sh
+Fake `orca` CLI on PATH logs every real invocation; task metadata carries the id shape Orca produces (<uuid>::<absolute worktree path>).
+
+==============================================================
+1) BEFORE the fix (bin/fm-backend.sh from base f2d6c3e) - the reported blocker
+==============================================================
+### task metadata as recorded by fm-spawn (backend=orca)
+window=fm-orcateardowndemo
+terminal=term-reels-7
+worktree=/private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-before.ZgzEQX/orca/workspaces/ig-reels-gen/fm-orcateardowndemo
+backend=orca
+orca_worktree_id=e5d1f72a-8900-4f46-aed7-b9f49673674b::/private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-before.ZgzEQX/orca/workspaces/ig-reels-gen/fm-orcateardowndemo
+
+### $ bin/fm-teardown.sh orcateardowndemo 
+REFUSED: Orca endpoint metadata for task orcateardowndemo is malformed or inconsistent; preserving task state.
+exit status: 1
+
+### real orca CLI calls fm-teardown.sh made
+
+### task metadata after teardown
+STILL PRESENT: orcateardowndemo.meta (task state preserved)
+### worktree directory after teardown
+STILL PRESENT: /private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-before.ZgzEQX/orca/workspaces/ig-reels-gen/fm-orcateardowndemo
+
+==============================================================
+2) AFTER the fix (99ea80a) - same task, same real-form id
+==============================================================
+### task metadata as recorded by fm-spawn (backend=orca)
+window=fm-orcateardowndemo
+terminal=term-reels-7
+worktree=/private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-after.9JNIGY/orca/workspaces/ig-reels-gen/fm-orcateardowndemo
+backend=orca
+orca_worktree_id=e5d1f72a-8900-4f46-aed7-b9f49673674b::/private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-after.9JNIGY/orca/workspaces/ig-reels-gen/fm-orcateardowndemo
+
+### $ bin/fm-teardown.sh orcateardowndemo 
+teardown orcateardowndemo complete (window term-reels-7, worktree /private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-after.9JNIGY/orca/workspaces/ig-reels-gen/fm-orcateardowndemo)
+Backlog: orcateardowndemo just finished (this home keeps no markdown backlog at /private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-after.9JNIGY/data/backlog.md). Update /private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-after.9JNIGY/data/backlog.md - move orcateardowndemo to Done, keep Done to the 10 most recent, then re-scan Queued and dispatch only work whose blockers are gone and date is due.
+exit status: 0
+
+### real orca CLI calls fm-teardown.sh made
+$ orca worktree show --worktree id:e5d1f72a-8900-4f46-aed7-b9f49673674b::/private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-after.9JNIGY/orca/workspaces/ig-reels-gen/fm-orcateardowndemo --json
+$ orca terminal close --terminal term-reels-7 --json
+$ orca worktree rm --worktree id:e5d1f72a-8900-4f46-aed7-b9f49673674b::/private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-after.9JNIGY/orca/workspaces/ig-reels-gen/fm-orcateardowndemo --force --json
+
+### task metadata after teardown
+REMOVED: orcateardowndemo.meta (task closed out)
+### worktree directory after teardown
+STILL PRESENT: /private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-after.9JNIGY/orca/workspaces/ig-reels-gen/fm-orcateardowndemo
+
+==============================================================
+3) AFTER the fix - id embeds a DIFFERENT worktree: still refused, both paths named
+==============================================================
+### task metadata as recorded by fm-spawn (backend=orca)
+window=fm-orcateardowndemo
+terminal=term-reels-7
+worktree=/private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-diverged.Od3LaM/orca/workspaces/ig-reels-gen/fm-orcateardowndemo
+backend=orca
+orca_worktree_id=e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/joncarvv/orca/workspaces/other-project/fm-someone-else
+
+### $ bin/fm-teardown.sh orcateardowndemo 
+REFUSED: Orca worktree id for task orcateardowndemo embeds path /Users/joncarvv/orca/workspaces/other-project/fm-someone-else but the recorded worktree is /private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-diverged.Od3LaM/orca/workspaces/ig-reels-gen/fm-orcateardowndemo; preserving task state.
+exit status: 1
+
+### real orca CLI calls fm-teardown.sh made
+
+### task metadata after teardown
+STILL PRESENT: orcateardowndemo.meta (task state preserved)
+### worktree directory after teardown
+STILL PRESENT: /private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-diverged.Od3LaM/orca/workspaces/ig-reels-gen/fm-orcateardowndemo
+
+==============================================================
+4) AFTER the fix - --force does NOT loosen the validation
+==============================================================
+### task metadata as recorded by fm-spawn (backend=orca)
+window=fm-orcateardowndemo
+terminal=term-reels-7
+worktree=/private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-diverged-force.fG2mmD/orca/workspaces/ig-reels-gen/fm-orcateardowndemo
+backend=orca
+orca_worktree_id=e5d1f72a-8900-4f46-aed7-b9f49673674b::/Users/joncarvv/orca/workspaces/other-project/fm-someone-else
+
+### $ bin/fm-teardown.sh orcateardowndemo --force
+REFUSED: Orca worktree id for task orcateardowndemo embeds path /Users/joncarvv/orca/workspaces/other-project/fm-someone-else but the recorded worktree is /private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-diverged-force.fG2mmD/orca/workspaces/ig-reels-gen/fm-orcateardowndemo; preserving task state.
+exit status: 1
+
+### real orca CLI calls fm-teardown.sh made
+
+### task metadata after teardown
+STILL PRESENT: orcateardowndemo.meta (task state preserved)
+### worktree directory after teardown
+STILL PRESENT: /private/var/folders/37/tb9v62kx53sf07mn5kmvfqj80000gn/T/orca-teardown-drive-ev-diverged-force.fG2mmD/orca/workspaces/ig-reels-gen/fm-orcateardowndemo

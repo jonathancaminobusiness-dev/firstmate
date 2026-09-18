@@ -297,7 +297,7 @@ test_supported_backend_endpoint_records_validate() {
 }
 
 test_orca_worktree_id_has_its_own_composite_rule() {
-  local dir id bad real_path
+  local dir id bad real_path foreign
   dir=$(make_case orca-id-form)
   # shellcheck source=/dev/null
   . "$ROOT/bin/fm-backend.sh"
@@ -327,21 +327,35 @@ test_orca_worktree_id_has_its_own_composite_rule() {
     "$ORCA_UUID:$dir/worktree" \
     "$ORCA_UUID::" \
     "$ORCA_UUID::worktree" \
-    "$ORCA_UUID::/Users/x/orca/workspaces/proj/fm-task" \
     "::$dir/worktree" \
     "bad id::$dir/worktree" \
     "bad;id::$dir/worktree"; do
-    if fm_backend_orca_worktree_id_valid "$bad" "$dir/worktree"; then
-      fail "malformed or foreign Orca worktree id was accepted: $bad"
+    if fm_backend_orca_worktree_id_valid "$bad"; then
+      fail "malformed Orca worktree id was accepted: $bad"
     fi
     fm_write_meta "$dir/home/state/$id.meta" \
       "window=fm-$id" "endpoint_task_id=$id" "terminal=term-7" \
       "worktree=$dir/worktree" "project=$dir/project" "backend=orca" "orca_worktree_id=$bad"
     if fm_backend_validate_task_endpoint "$dir/home/state/$id.meta" "$id" 2>/dev/null; then
-      fail "endpoint validation accepted a malformed or foreign Orca worktree id: $bad"
+      fail "endpoint validation accepted a malformed Orca worktree id: $bad"
     fi
   done
-  if fm_backend_orca_worktree_id_valid "" "$dir/worktree"; then fail "empty Orca worktree id was accepted"; fi
+  if fm_backend_orca_worktree_id_valid ""; then fail "empty Orca worktree id was accepted"; fi
+
+  # A well-formed id that names another worktree is refused, and the refusal has
+  # to name both paths so a divergence is diagnosable from the message alone.
+  foreign=/Users/x/orca/workspaces/proj/fm-task
+  fm_write_meta "$dir/home/state/$id.meta" \
+    "window=fm-$id" "endpoint_task_id=$id" "terminal=term-7" \
+    "worktree=$dir/worktree" "project=$dir/project" "backend=orca" \
+    "orca_worktree_id=$ORCA_UUID::$foreign"
+  if fm_backend_validate_task_endpoint "$dir/home/state/$id.meta" "$id" 2> "$dir/foreign.err"; then
+    fail "endpoint validation accepted an Orca worktree id naming another worktree"
+  fi
+  grep -Fq "$foreign" "$dir/foreign.err" \
+    || fail "the mismatch refusal did not name the embedded path: $(cat "$dir/foreign.err")"
+  grep -Fq "$dir/worktree" "$dir/foreign.err" \
+    || fail "the mismatch refusal did not name the recorded worktree: $(cat "$dir/foreign.err")"
 
   # The composite rule is scoped to orca_worktree_id: the shared atom rule still
   # refuses a path, so every other endpoint atom keeps its strict alphabet.

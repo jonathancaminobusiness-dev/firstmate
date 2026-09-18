@@ -36,12 +36,13 @@ The normal isolation and unlanded-work refusal rules still apply.
 backend=orca
 window=fm-<id>
 terminal=<orca terminal handle>
-orca_worktree_id=<orca worktree id>
+orca_worktree_id=<orca worktree id>::<absolute worktree path>
 worktree=<absolute Orca worktree path>
 ```
 
 `window=` remains the caller-facing Firstmate alias.
 `terminal=` and `orca_worktree_id=` are the backend authority used by operation and cleanup paths.
+`fm_backend_orca_worktree_id_valid` in `bin/fm-backend.sh` owns the composite id rule that endpoint validation applies before cleanup.
 
 ## Current lifecycle and safety
 

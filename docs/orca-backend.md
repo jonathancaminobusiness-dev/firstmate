@@ -42,7 +42,9 @@ worktree=<absolute Orca worktree path>
 
 `window=` remains the caller-facing Firstmate alias.
 `terminal=` and `orca_worktree_id=` are the backend authority used by operation and cleanup paths.
-`fm_backend_orca_worktree_id_valid` in `bin/fm-backend.sh` owns the composite id rule that endpoint validation applies before cleanup: the part before `::` must be a plain endpoint atom and the path after it must be exactly the recorded `worktree=` value, so cleanup can only target the worktree the task owns.
+`fm_backend_orca_worktree_id_valid` in `bin/fm-backend.sh` owns the composite id form rule that endpoint validation applies before cleanup, control, and relaunch: the part before `::` must be a plain endpoint atom and the part after it must be an absolute path.
+Endpoint validation then requires that embedded path to equal the recorded `worktree=` value, so cleanup can only target the worktree the task owns.
+A well-formed id whose embedded path disagrees with `worktree=` is refused by a message naming both paths, because that equality is observed in real Orca records rather than promised by an Orca contract.
 
 ## Current lifecycle and safety
 
